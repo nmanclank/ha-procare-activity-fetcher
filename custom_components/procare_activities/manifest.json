@@ -1,0 +1,14 @@
+{
+  "domain": "procare_activities",
+  "name": "Procare Activities",
+  "config_flow": true,
+  "documentation": "https://github.com/nmanclank/ha-procare-activities",
+  "issue_tracker": "https://github.com/nmanclank/ha-procare-activities/issues",
+  "codeowners": [
+    "@nmanclank"
+  ],
+  "dependencies": [],
+  "version": "0.2.0",
+  "iot_class": "cloud_polling",
+  "requirements": []
+}
