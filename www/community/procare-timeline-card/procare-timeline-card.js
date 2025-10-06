@@ -1,7 +1,10 @@
-// my-custom-card.js
+// PrcareTimelineCard.js
 
 import { LitElement, css, html } from "https://unpkg.com/lit-element@2.0.1/lit-element.js?module";
 
+// =============================
+// Procare Timeline Card Editor
+// =============================
 export class ProcareTimelineCardEditor extends LitElement {
   static get properties() {
     return {
@@ -344,9 +347,9 @@ class ProcareTimelineCard extends HTMLElement {
         <div class="timeline-item">
           <div class="timeline-icon"><ha-icon icon="${icon}"></ha-icon></div>
           <div class="timeline-content">
-            <div class="title">${title}</div>
-            <div class="time">${time}</div>
-            <div class="description">${description}</div>
+            <div class="title">  ${title}</div>
+            <div class="time">  ${time}</div>
+            <div class="description">  ${description}</div>
             ${staff}
             ${photo}
           </div>
