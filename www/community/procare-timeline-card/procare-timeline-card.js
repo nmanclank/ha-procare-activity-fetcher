@@ -1,5 +1,228 @@
-// procare-timeline-card.js
+// my-custom-card.js
 
+import { LitElement, css, html } from "https://unpkg.com/lit-element@2.0.1/lit-element.js?module";
+
+export class ProcareTimelineCardEditor extends LitElement {
+  static get properties() {
+    return {
+      _config: { type: Object },
+    };
+  }
+
+  setConfig(config) {
+    this._config = config || {};
+  }
+
+  set hass(hass) {
+    this._hass = hass;
+  }
+
+  // Main card editor render --  
+    render() {
+        if (!this._config) {
+            return html`<div>Please configure the card.</div>`;
+        }
+    const generalSchema = this._getSchema().slice(0,2);
+
+    const filterSchema = this._getSchema().slice(2,3);
+
+    const dateFormatSchema = this._getSchema().slice(3,4);
+
+
+    return html`
+            <style>
+                .card-content {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 16px;
+                }
+                details {
+                    border: 1px solid var(--divider-color, #eeeeee);
+                    border-radius: var(--ha-card-border-radius, 20px);
+                    margin-bottom: 0;
+                    overflow: hidden;
+                }
+                summary {
+                    font-weight: 500;
+                    font-size: 1rem;
+                    padding: 12px 16px;
+                    cursor: pointer;
+                    outline: none;
+                    user-select: none;
+                    display: flex;
+                    align-items: center;
+                }
+                summary::-webkit-details-marker {
+                    display: none;
+                }
+                summary:before {
+                    content: '';
+                    display: inline-block;
+                    margin-right: 8px;
+                    border-style: solid;
+                    border-width: 0.35em 0.35em 0 0.35em;
+                    border-color: var(--primary-text-color) transparent transparent transparent;
+                    vertical-align: middle;
+                    transition: transform 0.2s;
+                    transform: rotate(-90deg);
+                }
+                details[open] summary:before {
+                    transform: rotate(0deg);
+                }
+                .section-content {
+                    padding: 16px;
+                }
+                .section-icon {
+                    margin-right: 8px;
+                    color: var(--primary-text-color);
+                    font-size: 20px;
+                    vertical-align: middle;
+                }
+            </style>
+            <ha-card>
+                <div class="card-content">
+                    <details open>
+                        <summary><ha-icon class="section-icon" icon="mdi:cog"></ha-icon>General</summary>
+                        <div class="section-content">
+                            <ha-form
+                                .data=${this._config}
+                                .schema=${generalSchema}
+                                .computeLabel=${this._computeLabel}
+                                .computeHelper=${this._computeHelper}
+                                @value-changed=${this._valueChanged}
+                            ></ha-form>
+                        </div>
+                    </details>
+                    <details>
+                        <summary><ha-icon class="section-icon" icon="mdi:filter-variant"></ha-icon>Filters</summary>
+                        <div class="section-content">
+                            <ha-form
+                                .data=${this._config}
+                                .schema=${filterSchema}
+                                .computeLabel=${this._computeLabel}
+                                .computeHelper=${this._computeHelper}
+                                @value-changed=${this._valueChanged}
+                            ></ha-form>
+                        </div>
+                    </details>
+                    <details>
+                        <summary><ha-icon class="section-icon" icon="mdi:translate"></ha-icon>Date Format</summary>
+                        <div class="section-content">
+                            <ha-form
+                                .data=${this._config}
+                                .schema=${dateFormatSchema}
+                                .computeLabel=${this._computeLabel}
+                                .computeHelper=${this._computeHelper}
+                                @value-changed=${this._valueChanged}
+                            ></ha-form>
+                        </div>
+                    </details>
+                </div>
+            </ha-card>
+        `;
+    }
+  _getSchema() {
+    const hass = this._hass;
+    const generalSchema = [
+      {
+        name: "header",
+        description: "Header text for the card.",
+        selector: { text: {} }
+      },
+      {
+        name: "entity",
+        description: "Select the Procare child timeline entity to display.",
+        selector: {
+          select: {
+            mode: "dropdown",
+            options: hass ? (
+              Object.keys(hass.states)
+                .filter(entity => entity.startsWith('sensor.'))
+                .map(entity => ({
+                  value: entity,
+                  label: hass.states[entity].attributes.friendly_name || entity
+                }))
+            ) : []
+          }
+        }
+      }
+    ];
+    const filterSchema = [
+      {
+        name: "number_of_events",
+        description: "Number of most recent events to display. A maximum of 10 events can be displayed.",
+        selector: { number: { min: 1, max: 10, step: 1 } }
+      }
+    ];
+    const dateFormatSchema = [
+      {
+        name: "date_format",
+        description: "Date format for the card.",
+        selector: {
+          select: {
+            options: [
+              { value: "short", label: "Short" },
+              { value: "long", label: "Long" },
+              { value: "monthddyy", label: "Month dd yy" }
+            ]
+          }
+        }
+      }
+    ];
+
+    return [
+      ...generalSchema,
+      ...filterSchema,
+      ...dateFormatSchema
+    ];
+  }
+  _computeLabel(schema) {
+    const labels = {
+      header: "Header",
+      entity: "Procare Child Sensor Entity",
+      number_of_events: "Number of Events",
+      date_format: "Date Format"
+    };
+    return labels[schema.name] || schema.name;
+  }
+
+    _computeHelper = (schema) => schema.description || "";
+
+  _valueChanged(event) {
+    let newConfig = event.detail.value;
+    this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: newConfig } }));
+  }
+
+    static get styles() {
+        return css`
+            ha-card {
+                padding: 16px;
+            }
+            .card-content {
+                display: flex;
+                flex-direction: column;
+                gap: 16px;
+            }
+        `;
+    }
+}
+
+customElements.define("procare-timeline-card-editor", ProcareTimelineCardEditor);
+
+// =============================
+// Card registration
+// =============================
+window.customCards = window.customCards || [];
+window.customCards.push({
+  type: 'procare-timeline-card',
+  name: 'Procare Timeline Card',
+  description: 'A timeline card to display Procare activities.',
+});
+
+
+// =============================
+// Procare Timeline Card
+// =============================
 class ProcareTimelineCard extends HTMLElement {
   constructor() {
     super();
@@ -8,13 +231,13 @@ class ProcareTimelineCard extends HTMLElement {
 
   setConfig(config) {
     if (!config.entity) {
-      throw new Error('You need to define an entity');
+      throw new Error('You must define an entity');
     }
     this._config = {
-      title: config.title || 'Procare Activities',
+      header: config.header || 'Procare Activities',
       entity: config.entity,
-      max_events: config.max_events || 10,
-      date_format: config.date_format || 'short',
+      number_of_events: config.number_of_events || 10,
+      date_format: config.date_format || 'monthddyy',
     };
   }
 
@@ -29,7 +252,7 @@ class ProcareTimelineCard extends HTMLElement {
     }
 
     const activities = state.attributes.activities || [];
-    const limitedActivities = activities.slice(0, this._config.max_events);
+    const limitedActivities = activities.slice(0, this._config.number_of_events);
     this.render(limitedActivities);
   }
 
@@ -58,14 +281,18 @@ class ProcareTimelineCard extends HTMLElement {
         weekday: "long", month: "long", day: "numeric",
         hour: "2-digit", minute: "2-digit"
       });
+      case "monthddyy": return d.toLocaleString(undefined, {
+        month: "long", day: "2-digit", year: "2-digit",
+        hour: "2-digit", minute: "2-digit"
+      });
       case "short":
       default:
         return d.toLocaleString();
     }
   }
-  
+
   render(activities) {
-    const cardTitle = this._config.title;
+    const cardTitle = this._config.header;
 
     if (!this.shadowRoot.querySelector('ha-card')) {
       this.shadowRoot.innerHTML = `
@@ -147,93 +374,9 @@ class ProcareTimelineCard extends HTMLElement {
   }
 
   static getStubConfig() {
-    return {
-      entity: "sensor.procare_child_name",
-    };
+    return {}; // no default entity
   }
 }
 
 customElements.define('procare-timeline-card', ProcareTimelineCard);
 
-class ProcareTimelineCardEditor extends HTMLElement {
-  constructor() {
-    super();
-    this.attachShadow({ mode: 'open' });
-  }
-
-  setConfig(config) {
-    this._config = config;
-    this.render();
-  }
-
-  _valueChanged(ev) {
-    if (!this._config) return;
-    const target = ev.target;
-    const newConfig = { ...this._config };
-    newConfig[target.configValue] = target.value;
-    
-    const event = new Event("config-changed", { bubbles: true, composed: true });
-    event.detail = { config: newConfig };
-    this.dispatchEvent(event);
-  }
-
-  render() {
-    if (!this.shadowRoot) return;
-
-    this.shadowRoot.innerHTML = `
-      <style>
-        .card-config { display: flex; flex-direction: column; gap: 16px; }
-        paper-input, paper-dropdown-menu { width: 100%; }
-      </style>
-      <div class="card-config">
-        <paper-input
-          label="Entity (Required)"
-          .value="${this._config.entity || ''}"
-          configValue="entity"
-          @value-changed="${this._valueChanged.bind(this)}"
-        ></paper-input>
-
-        <paper-input
-          label="Title (Optional)"
-          .value="${this._config.title || ''}"
-          configValue="title"
-          @value-changed="${this._valueChanged.bind(this)}"
-        ></paper-input>
-
-        <paper-input
-          label="Max Events"
-          type="number"
-          .value="${this._config.max_events || 10}"
-          configValue="max_events"
-          @value-changed="${this._valueChanged.bind(this)}"
-        ></paper-input>
-
-        <paper-dropdown-menu
-          label="Date Format"
-          configValue="date_format"
-          @value-changed="${this._valueChanged.bind(this)}"
-        >
-          <paper-listbox
-            slot="dropdown-content"
-            selected="${["short", "date", "time", "long"].indexOf(this._config.date_format || 'short')}"
-          >
-            <paper-item>short</paper-item>
-            <paper-item>date</paper-item>
-            <paper-item>time</paper-item>
-            <paper-item>long</paper-item>
-          </paper-listbox>
-        </paper-dropdown-menu>
-      </div>
-    `;
-  }
-}
-
-customElements.define("procare-timeline-card-editor", ProcareTimelineCardEditor);
-
-
-window.customCards = window.customCards || [];
-window.customCards.push({
-  type: 'procare-timeline-card',
-  name: 'Procare Timeline Card',
-  description: 'A timeline card to display Procare activities.',
-});
