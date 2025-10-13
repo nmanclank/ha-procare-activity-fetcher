@@ -3,31 +3,13 @@ import logging
 from datetime import datetime, date, timedelta
 import aiohttp
 
+from .const import (
+    DEFAULT_AUTH_HOST,
+    DEFAULT_API_HOST,
+    DEFAULT_WEB_HOST,
+)
+
 _LOGGER = logging.getLogger(__name__)
-
-### Procare hosts 
-"""
-Web Host   - Used to return auth token
-Auth_Host  - Takes auth token and creates a session 
-API Host   - Takes authenticated session and serves data (Activities, IDs, etc.)
-
-"""
-AUTH_HOST = "https://online-auth.procareconnect.com"
-API_HOST = "https://api-school.procareconnect.com"
-WEB_HOST = "https://schools.procareconnect.com"
-
-###################################################
-
-###  API endpoints
-
-"""
-Defined endpoint using the above hosts.
-"""
-LOGIN_URL = f"{AUTH_HOST}/sessions/"
-KIDS_URL = f"{API_HOST}/api/web/parent/kids/"
-WEB_LOGIN_URL = f"{WEB_HOST}/login"
-ACTIVITIES_URL = f"{API_HOST}/api/web/parent/daily_activities/"
-###################################################
 
 
 
@@ -53,15 +35,32 @@ class ProcareNoChildrenError(ProcareApiError):
 
 
 class ProcareApi:
-    def __init__(self, session: aiohttp.ClientSession, username: str, password: str):
+    def __init__(
+        self,
+        session: aiohttp.ClientSession,
+        username: str,
+        password: str,
+        school_name: str = None,
+    ):
         """API Client Init"""
         self._session = session
         self._username = username
         self._password = password
+        self._school_name = school_name
+
+        if school_name:
+            self._auth_host = f"https://online-auth.{school_name}.procareconnect.com"
+            self._api_host = f"https://api-school.{school_name}.procareconnect.com"
+            self._web_host = f"https://schools.{school_name}.procareconnect.com"
+        else:
+            self._auth_host = DEFAULT_AUTH_HOST
+            self._api_host = DEFAULT_API_HOST
+            self._web_host = DEFAULT_WEB_HOST
+
         self._headers = {
             "Accept": "application/json, text/plain, */*",
-            "Origin": WEB_HOST,
-            "Referer": f"{WEB_HOST}/",
+            "Origin": self._web_host,
+            "Referer": f"{self._web_host}/",
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36",
             "sec-ch-ua": '"Chromium";v="140", "Not=A?Brand";v="24", "Google Chrome";v="140"',
             "sec-ch-ua-mobile": "?0",
@@ -82,7 +81,9 @@ class ProcareApi:
         # Visit the login page to establish a session and get necessary cookies.
         try:
             _LOGGER.debug("Visiting login page to initialize session.")
-            async with self._session.get(WEB_LOGIN_URL, headers=self._headers) as pre_resp:
+            async with self._session.get(
+                f"{self._web_host}/login", headers=self._headers
+            ) as pre_resp:
                 pre_resp.raise_for_status()
                 _LOGGER.debug("Successfully initialized session.")
         except aiohttp.ClientError as err:
@@ -91,7 +92,9 @@ class ProcareApi:
         # Post credentials to the authentication API endpoint.
         payload = {"email": self._username, "password": self._password, "role": "carer", "platform": "web"}
         
-        async with self._session.post(LOGIN_URL, json=payload, headers=self._headers) as resp:
+        async with self._session.post(
+            f"{self._auth_host}/sessions/", json=payload, headers=self._headers
+        ) as resp:
             if resp.status not in (200, 201):
                 raise ProcareAuthError(f"Auth failed with status:  {resp.status}")
 
@@ -115,7 +118,9 @@ class ProcareApi:
     async def async_get_kids(self) -> list[dict]:
         ''' Get kids for account'''
         await self.async_login()
-        async with self._session.get(KIDS_URL, headers=self._get_auth_headers()) as resp:
+        async with self._session.get(
+            f"{self._api_host}/api/web/parent/kids/", headers=self._get_auth_headers()
+        ) as resp:
             resp.raise_for_status()
             data = await resp.json()
             kids = data.get("kids", [])
@@ -138,7 +143,11 @@ class ProcareApi:
         }
         
         try:
-            async with self._session.get(ACTIVITIES_URL, headers=self._get_auth_headers(), params=params) as resp:
+            async with self._session.get(
+                f"{self._api_host}/api/web/parent/daily_activities/",
+                headers=self._get_auth_headers(),
+                params=params,
+            ) as resp:
                 resp.raise_for_status()
                 data = await resp.json()
                 raw_activities = data.get("daily_activities", [])

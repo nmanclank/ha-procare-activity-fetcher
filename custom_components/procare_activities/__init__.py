@@ -9,7 +9,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.exceptions import ConfigEntryAuthFailed
 
-from .const import DOMAIN, PLATFORMS
+from .const import DOMAIN, PLATFORMS, CONF_SCHOOL_NAME
 from .api import ProcareApi, ProcareAuthError
 
 _LOGGER = logging.getLogger(__name__)
@@ -21,10 +21,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     username = entry.data["username"]
     password = entry.data["password"]
     selected_kid_id = entry.data["kid_id"]
+    school_name = entry.data.get(CONF_SCHOOL_NAME)
 
     # Create a single, persistent session for the integration
     session = aiohttp.ClientSession()
-    api = ProcareApi(session, username, password)
+    api = ProcareApi(session, username, password, school_name)
 
     async def async_update_data():
         """Fetch data from API endpoint."""
