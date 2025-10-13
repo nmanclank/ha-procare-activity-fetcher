@@ -7,7 +7,7 @@ from homeassistant import config_entries
 from homeassistant.core import callback
 from homeassistant.const import CONF_USERNAME, CONF_PASSWORD
 
-from .const import DOMAIN
+from .const import DOMAIN, CONF_SCHOOL_NAME
 from .api import ProcareApi, ProcareAuthError, ProcareNoChildrenError
 
 _LOGGER = logging.getLogger(__name__)
@@ -29,7 +29,13 @@ class ProcareConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             self._user_input = user_input
             session = aiohttp.ClientSession()
-            api = ProcareApi(session, user_input[CONF_USERNAME], user_input[CONF_PASSWORD])
+            school_name = user_input.get(CONF_SCHOOL_NAME)
+            api = ProcareApi(
+                session,
+                user_input[CONF_USERNAME],
+                user_input[CONF_PASSWORD],
+                school_name,
+            )
             
             try:
                 await api.async_login()
@@ -52,6 +58,7 @@ class ProcareConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             data_schema=vol.Schema({
                 vol.Required(CONF_USERNAME): str,
                 vol.Required(CONF_PASSWORD): str,
+                vol.Optional(CONF_SCHOOL_NAME): str,
             }),
             errors=errors,
         )
@@ -67,14 +74,18 @@ class ProcareConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             await self.async_set_unique_id(kid_id)
             self._abort_if_unique_id_configured()
             
+            data = {
+                "username": self._user_input[CONF_USERNAME],
+                "password": self._user_input[CONF_PASSWORD],
+                "kid_id": kid_id,
+                "kid_name": kid_name,
+            }
+            if self._user_input.get(CONF_SCHOOL_NAME):
+                data[CONF_SCHOOL_NAME] = self._user_input[CONF_SCHOOL_NAME]
+
             return self.async_create_entry(
                 title=f"{kid_name} Activities",
-                data={
-                    "username": self._user_input[CONF_USERNAME],
-                    "password": self._user_input[CONF_PASSWORD],
-                    "kid_id": kid_id,
-                    "kid_name": kid_name,
-                },
+                data=data,
             )
 
         return self.async_show_form(
