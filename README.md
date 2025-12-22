@@ -4,7 +4,8 @@
 
 This is a custom integration for Home Assistant to display the latest activities from the [Procare Connect](https://procareconnect.com/) platform. It creates a sensor that shows the most recent activity for a selected child and stores all of today's activities in the sensor's attributes.
 
-![Activity Sensor Screenshot](placeholder_for_sensor_screenshot.png)
+![Activity Sensor Screenshot](<img width="592" height="950" alt="image" src="https://github.com/user-attachments/assets/f97c19ab-6820-4421-9442-2a1755af7a9f" />
+)
 
 ## Features
 
