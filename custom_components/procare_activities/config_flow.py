@@ -58,10 +58,10 @@ class ProcareConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             data_schema=vol.Schema({
                 vol.Required(CONF_USERNAME): str,
                 vol.Required(CONF_PASSWORD): str,
+                vol.Optional(CONF_SCHOOL_NAME): str,
                 vol.Optional(CONF_UPDATE_INTERVAL, default=DEFAULT_UPDATE_INTERVAL): vol.All(
                     vol.Coerce(int), vol.Range(min=5, max=120)
                 ),
-                vol.Optional(CONF_SCHOOL_NAME): str,
             }),
             errors=errors,
         )
