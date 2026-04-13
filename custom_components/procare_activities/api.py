@@ -49,7 +49,13 @@ class ProcareApi:
         self._school_name = school_name
 
         if school_name:
-            self._auth_host = f"https://online-auth.{school_name}.procareconnect.com"
+            # Some Procare instances (e.g. Primrose Schools) use the generic
+            # auth endpoint but school-specific API and web hosts. DNS lookups
+            # confirm that online-auth.<school>.procareconnect.com does not
+            # exist for these providers, while api-school.<school>. and
+            # schools.<school>. do. Using the generic auth host works for all
+            # known configurations.
+            self._auth_host = DEFAULT_AUTH_HOST
             self._api_host = f"https://api-school.{school_name}.procareconnect.com"
             self._web_host = f"https://schools.{school_name}.procareconnect.com"
         else:
