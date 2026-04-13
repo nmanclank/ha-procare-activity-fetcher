@@ -9,7 +9,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.exceptions import ConfigEntryAuthFailed
 
-from .const import DOMAIN, PLATFORMS, CONF_SCHOOL_NAME
+from .const import DOMAIN, PLATFORMS, CONF_SCHOOL_NAME, CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL
 from .api import ProcareApi, ProcareAuthError
 
 _LOGGER = logging.getLogger(__name__)
@@ -36,12 +36,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         except Exception as err:
             raise UpdateFailed(f"Error communicating with API: {err}")
 
+    update_interval_minutes = entry.data.get(CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL)
     coordinator = DataUpdateCoordinator(
         hass,
         _LOGGER,
         name="procare_activities_sensor",
         update_method=async_update_data,
-        update_interval=timedelta(minutes=35),
+        update_interval=timedelta(minutes=update_interval_minutes),
     )
     
     # Fetch initial data so we have it when platforms are set up.

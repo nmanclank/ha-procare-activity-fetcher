@@ -7,7 +7,7 @@ from homeassistant import config_entries
 from homeassistant.core import callback
 from homeassistant.const import CONF_USERNAME, CONF_PASSWORD
 
-from .const import DOMAIN, CONF_SCHOOL_NAME
+from .const import DOMAIN, CONF_SCHOOL_NAME, CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL
 from .api import ProcareApi, ProcareAuthError, ProcareNoChildrenError
 
 _LOGGER = logging.getLogger(__name__)
@@ -58,6 +58,9 @@ class ProcareConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             data_schema=vol.Schema({
                 vol.Required(CONF_USERNAME): str,
                 vol.Required(CONF_PASSWORD): str,
+                vol.Optional(CONF_UPDATE_INTERVAL, default=DEFAULT_UPDATE_INTERVAL): vol.All(
+                    vol.Coerce(int), vol.Range(min=5, max=120)
+                ),
                 vol.Optional(CONF_SCHOOL_NAME): str,
             }),
             errors=errors,
@@ -82,6 +85,8 @@ class ProcareConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             }
             if self._user_input.get(CONF_SCHOOL_NAME):
                 data[CONF_SCHOOL_NAME] = self._user_input[CONF_SCHOOL_NAME]
+            if CONF_UPDATE_INTERVAL in self._user_input:
+                data[CONF_UPDATE_INTERVAL] = self._user_input[CONF_UPDATE_INTERVAL]
 
             return self.async_create_entry(
                 title=f"{kid_name} Activities",
