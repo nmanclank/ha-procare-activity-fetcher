@@ -121,49 +121,54 @@ class ProcareApi:
         headers["Authorization"] = f"Bearer {self._auth_token}"
         return headers
 
-    async def async_get_kids(self) -> list[dict]:
-        ''' Get kids for account'''
+    async def _request_with_reauth(self, method: str, url: str, **kwargs) -> dict:
+        """Make an authenticated API request, retrying once after re-authentication on 401/403."""
+        # Ensure we have a token before the first attempt. async_login() is a
+        # no-op when self._auth_token is already set, so this is not wasteful.
         await self.async_login()
-        async with self._session.get(
-            f"{self._api_host}/api/web/parent/kids/", headers=self._get_auth_headers()
-        ) as resp:
-            resp.raise_for_status()
-            data = await resp.json()
-            kids = data.get("kids", [])
-            if not kids:
-                raise ProcareNoChildrenError("No children found for this account.")
-            return [{"name": f"{k.get('first_name', '')} {k.get('last_name', '')}".strip(), "id": k.get("id")} for k in kids]
+        for attempt in range(2):
+            try:
+                async with self._session.request(
+                    method, url, headers=self._get_auth_headers(), **kwargs
+                ) as resp:
+                    resp.raise_for_status()
+                    return await resp.json()
+            except aiohttp.ClientResponseError as err:
+                if err.status in (401, 403) and attempt == 0:
+                    _LOGGER.warning("Token expired (HTTP %s), re-authenticating.", err.status)
+                    self._auth_token = None
+                    await self.async_login()
+                    continue
+                if err.status in (401, 403):
+                    raise ProcareAuthError("Re-authentication failed.") from err
+                raise ProcareApiError(f"Request failed with status {err.status}.") from err
+
+    async def async_get_kids(self) -> list[dict]:
+        """Get kids for account."""
+        data = await self._request_with_reauth("GET", f"{self._api_host}/api/web/parent/kids/")
+        kids = data.get("kids", [])
+        if not kids:
+            raise ProcareNoChildrenError("No children found for this account.")
+        return [{"name": f"{k.get('first_name', '')} {k.get('last_name', '')}".strip(), "id": k.get("id")} for k in kids]
 
     async def async_get_activities(self, kid_id: str) -> list[dict]:
         """Fetch latest activities for a specific child from the last 7 days."""
-        await self.async_login()
-        
         today = date.today()
         seven_days_ago = today - timedelta(days=7)
-        
+
         params = {
             "kid_id": kid_id,
             "filters[daily_activity][date_from]": seven_days_ago.strftime("%Y-%m-%d"),
             "filters[daily_activity][date_to]": today.strftime("%Y-%m-%d"),
-            "page": "1"
+            "page": "1",
         }
-        
-        try:
-            async with self._session.get(
-                f"{self._api_host}/api/web/parent/daily_activities/",
-                headers=self._get_auth_headers(),
-                params=params,
-            ) as resp:
-                resp.raise_for_status()
-                data = await resp.json()
-                raw_activities = data.get("daily_activities", [])
-                return self._parse_activities(raw_activities)
 
-        except aiohttp.ClientResponseError as err:
-            if err.status in (401, 403):
-                self._auth_token = None
-                raise ProcareAuthError("Token expired, will re-authenticate.") from err
-            raise ProcareApiError(f"Failed to fetch activities: {err.status}") from err
+        data = await self._request_with_reauth(
+            "GET",
+            f"{self._api_host}/api/web/parent/daily_activities/",
+            params=params,
+        )
+        return self._parse_activities(data.get("daily_activities", []))
 
     def _parse_activities(self, raw_activities: list[dict]) -> list[dict]:
         """Parses the raw API activity data into a clean format."""
