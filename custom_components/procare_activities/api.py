@@ -1,4 +1,5 @@
 """API Client for Procare Connect."""
+import asyncio
 import logging
 from datetime import datetime, date, timedelta
 import aiohttp
@@ -98,20 +99,35 @@ class ProcareApi:
         # Post credentials to the authentication API endpoint.
         payload = {"email": self._username, "password": self._password, "role": "carer", "platform": "web"}
         
-        async with self._session.post(
-            f"{self._auth_host}/sessions/", json=payload, headers=self._headers
-        ) as resp:
-            if resp.status not in (200, 201):
-                raise ProcareAuthError(f"Auth failed with status:  {resp.status}")
+        try:
+            async with self._session.post(
+                f"{self._auth_host}/sessions/", json=payload, headers=self._headers
+            ) as resp:
+                if resp.status in (401, 403):
+                    raise ProcareAuthError(f"Invalid credentials (HTTP {resp.status})")
+                if resp.status == 429:
+                    raise ProcareApiError("Rate limited by Procare auth service.")
+                if resp.status >= 500:
+                    raise ProcareApiError(f"Procare auth server error (HTTP {resp.status}).")
+                if resp.status not in (200, 201):
+                    raise ProcareAuthError(f"Auth failed with status: {resp.status}")
 
-            data = await resp.json()
-            token = data.get("auth_token")
-            
-            if not token:
-                raise ProcareAuthError("token not found in login response.")
-            
-            self._auth_token = token
-            _LOGGER.info("Successfully logged in.")
+                try:
+                    data = await resp.json()
+                except (aiohttp.ContentTypeError, ValueError) as err:
+                    raise ProcareApiError("Unexpected response format from auth service.") from err
+
+                token = data.get("auth_token")
+                
+                if not token:
+                    raise ProcareAuthError("token not found in login response.")
+                
+                self._auth_token = token
+                _LOGGER.info("Successfully logged in.")
+        except (aiohttp.ClientConnectionError, aiohttp.ServerTimeoutError) as err:
+            raise ProcareApiError(f"Cannot connect to Procare auth service: {err}") from err
+        except asyncio.TimeoutError as err:
+            raise ProcareApiError("Request to Procare auth service timed out.") from err
 
     def _get_auth_headers(self):
         if not self._auth_token:
@@ -131,16 +147,29 @@ class ProcareApi:
                 async with self._session.request(
                     method, url, headers=self._get_auth_headers(), **kwargs
                 ) as resp:
+                    if resp.status in (401, 403) and attempt == 0:
+                        _LOGGER.warning("Token expired (HTTP %s), re-authenticating.", resp.status)
+                        self._auth_token = None
+                        await self.async_login()
+                        continue
+                    if resp.status in (401, 403):
+                        raise ProcareAuthError("Re-authentication failed.")
+                    if resp.status == 429:
+                        _LOGGER.warning("Rate limited by Procare API (HTTP 429).")
+                        raise ProcareApiError("Rate limited by Procare API.")
+                    if resp.status >= 500:
+                        _LOGGER.warning("Procare server error (HTTP %s).", resp.status)
+                        raise ProcareApiError(f"Procare server error (HTTP {resp.status}).")
                     resp.raise_for_status()
-                    return await resp.json()
+                    try:
+                        return await resp.json()
+                    except (aiohttp.ContentTypeError, ValueError) as err:
+                        raise ProcareApiError("Unexpected response format from Procare API.") from err
+            except (aiohttp.ClientConnectionError, aiohttp.ServerTimeoutError) as err:
+                raise ProcareApiError(f"Cannot connect to Procare API: {err}") from err
+            except asyncio.TimeoutError as err:
+                raise ProcareApiError("Request to Procare API timed out.") from err
             except aiohttp.ClientResponseError as err:
-                if err.status in (401, 403) and attempt == 0:
-                    _LOGGER.warning("Token expired (HTTP %s), re-authenticating.", err.status)
-                    self._auth_token = None
-                    await self.async_login()
-                    continue
-                if err.status in (401, 403):
-                    raise ProcareAuthError("Re-authentication failed.") from err
                 raise ProcareApiError(f"Request failed with status {err.status}.") from err
 
     async def async_get_kids(self) -> list[dict]:

@@ -10,7 +10,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from homeassistant.exceptions import ConfigEntryAuthFailed
 
 from .const import DOMAIN, PLATFORMS, CONF_SCHOOL_NAME, CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL
-from .api import ProcareApi, ProcareAuthError
+from .api import ProcareApi, ProcareApiError, ProcareAuthError
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -33,8 +33,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             return await api.async_get_activities(selected_kid_id)
         except ProcareAuthError as err:
             raise ConfigEntryAuthFailed from err
+        except ProcareApiError as err:
+            raise UpdateFailed(f"Error communicating with Procare API: {err}") from err
         except Exception as err:
-            raise UpdateFailed(f"Error communicating with API: {err}")
+            raise UpdateFailed(f"Unexpected error: {err}") from err
 
     update_interval_minutes = entry.data.get(CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL)
     coordinator = DataUpdateCoordinator(

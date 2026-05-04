@@ -8,7 +8,7 @@ from homeassistant.core import callback
 from homeassistant.const import CONF_USERNAME, CONF_PASSWORD
 
 from .const import DOMAIN, CONF_SCHOOL_NAME, CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL
-from .api import ProcareApi, ProcareAuthError, ProcareNoChildrenError
+from .api import ProcareApi, ProcareApiError, ProcareAuthError, ProcareNoChildrenError
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -47,6 +47,9 @@ class ProcareConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 errors["base"] = "invalid_auth"
             except ProcareNoChildrenError:
                 errors["base"] = "no_children_found"
+            except ProcareApiError:
+                _LOGGER.exception("Cannot connect to Procare")
+                errors["base"] = "cannot_connect"
             except Exception:
                 _LOGGER.exception("Unexpected exception")
                 errors["base"] = "unknown"
