@@ -250,7 +250,7 @@ class ProcareApi:
                     "title": title.strip(),
                     "details": details.strip(),
                     "photo_url": act.get("photo_url"),
-                    "video_url": activiable.get("video_url"),
+                    "video_url": activiable.get("video_file_url"),
                     "is_video": activiable.get("is_video", False), 
                     "staff": act.get("staff_present_name"),
                 })
