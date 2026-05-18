@@ -241,6 +241,8 @@ class ProcareApi:
                         details = desc
                 elif activity_type == "bathroom" and data:
                     title = f"Diaper: {data.get('sub_type', 'check')}"
+                
+                activiable = act.get("activiable", {})
 
                 parsed.append({
                     "id": act.get("id"),
@@ -248,6 +250,8 @@ class ProcareApi:
                     "title": title.strip(),
                     "details": details.strip(),
                     "photo_url": act.get("photo_url"),
+                    "video_url": activiable.get("video_url"),
+                    "is_video": activiable.get("is_video", False), 
                     "staff": act.get("staff_present_name"),
                 })
             except Exception:

@@ -1,4 +1,4 @@
-// PrcareTimelineCard.js
+// ProcareTimelineCard.js
 
 import { LitElement, css, html } from "https://unpkg.com/lit-element@2.0.1/lit-element.js?module";
 
@@ -20,110 +20,107 @@ export class ProcareTimelineCardEditor extends LitElement {
     this._hass = hass;
   }
 
-  // Main card editor render --  
-    render() {
-        if (!this._config) {
-            return html`<div>Please configure the card.</div>`;
-        }
-    const generalSchema = this._getSchema().slice(0,2);
-
-    const filterSchema = this._getSchema().slice(2,3);
-
-    const dateFormatSchema = this._getSchema().slice(3,4);
-
+  render() {
+    if (!this._config) {
+      return html`<div>Please configure the card.</div>`;
+    }
+    const generalSchema = this._getSchema().slice(0, 2);
+    const filterSchema = this._getSchema().slice(2, 3);
+    const dateFormatSchema = this._getSchema().slice(3, 4);
 
     return html`
-            <style>
-                .card-content {
-                    display: flex;
-                    flex-direction: column;
-                    gap: 16px;
-                }
-                details {
-                    border: 1px solid var(--divider-color, #eeeeee);
-                    border-radius: var(--ha-card-border-radius, 20px);
-                    margin-bottom: 0;
-                    overflow: hidden;
-                }
-                summary {
-                    font-weight: 500;
-                    font-size: 1rem;
-                    padding: 12px 16px;
-                    cursor: pointer;
-                    outline: none;
-                    user-select: none;
-                    display: flex;
-                    align-items: center;
-                }
-                summary::-webkit-details-marker {
-                    display: none;
-                }
-                summary:before {
-                    content: '';
-                    display: inline-block;
-                    margin-right: 8px;
-                    border-style: solid;
-                    border-width: 0.35em 0.35em 0 0.35em;
-                    border-color: var(--primary-text-color) transparent transparent transparent;
-                    vertical-align: middle;
-                    transition: transform 0.2s;
-                    transform: rotate(-90deg);
-                }
-                details[open] summary:before {
-                    transform: rotate(0deg);
-                }
-                .section-content {
-                    padding: 16px;
-                }
-                .section-icon {
-                    margin-right: 8px;
-                    color: var(--primary-text-color);
-                    font-size: 20px;
-                    vertical-align: middle;
-                }
-            </style>
-            <ha-card>
-                <div class="card-content">
-                    <details open>
-                        <summary><ha-icon class="section-icon" icon="mdi:cog"></ha-icon>General</summary>
-                        <div class="section-content">
-                            <ha-form
-                                .data=${this._config}
-                                .schema=${generalSchema}
-                                .computeLabel=${this._computeLabel}
-                                .computeHelper=${this._computeHelper}
-                                @value-changed=${this._valueChanged}
-                            ></ha-form>
-                        </div>
-                    </details>
-                    <details>
-                        <summary><ha-icon class="section-icon" icon="mdi:filter-variant"></ha-icon>Filters</summary>
-                        <div class="section-content">
-                            <ha-form
-                                .data=${this._config}
-                                .schema=${filterSchema}
-                                .computeLabel=${this._computeLabel}
-                                .computeHelper=${this._computeHelper}
-                                @value-changed=${this._valueChanged}
-                            ></ha-form>
-                        </div>
-                    </details>
-                    <details>
-                        <summary><ha-icon class="section-icon" icon="mdi:translate"></ha-icon>Date Format</summary>
-                        <div class="section-content">
-                            <ha-form
-                                .data=${this._config}
-                                .schema=${dateFormatSchema}
-                                .computeLabel=${this._computeLabel}
-                                .computeHelper=${this._computeHelper}
-                                @value-changed=${this._valueChanged}
-                            ></ha-form>
-                        </div>
-                    </details>
-                </div>
-            </ha-card>
-        `;
-    }
+      <style>
+        .card-content {
+          display: flex;
+          flex-direction: column;
+          gap: 16px;
+        }
+        details {
+          border: 1px solid var(--divider-color, #eeeeee);
+          border-radius: var(--ha-card-border-radius, 20px);
+          margin-bottom: 0;
+          overflow: hidden;
+        }
+        summary {
+          font-weight: 500;
+          font-size: 1rem;
+          padding: 12px 16px;
+          cursor: pointer;
+          outline: none;
+          user-select: none;
+          display: flex;
+          align-items: center;
+        }
+        summary::-webkit-details-marker {
+          display: none;
+        }
+        summary:before {
+          content: '';
+          display: inline-block;
+          margin-right: 8px;
+          border-style: solid;
+          border-width: 0.35em 0.35em 0 0.35em;
+          border-color: var(--primary-text-color) transparent transparent transparent;
+          vertical-align: middle;
+          transition: transform 0.2s;
+          transform: rotate(-90deg);
+        }
+        details[open] summary:before {
+          transform: rotate(0deg);
+        }
+        .section-content {
+          padding: 16px;
+        }
+        .section-icon {
+          margin-right: 8px;
+          color: var(--primary-text-color);
+          font-size: 20px;
+          vertical-align: middle;
+        }
+      </style>
+      <ha-card>
+        <div class="card-content">
+          <details open>
+            <summary><ha-icon class="section-icon" icon="mdi:cog"></ha-icon>General</summary>
+            <div class="section-content">
+              <ha-form
+                .data=${this._config}
+                .schema=${generalSchema}
+                .computeLabel=${this._computeLabel}
+                .computeHelper=${this._computeHelper}
+                @value-changed=${this._valueChanged}
+              ></ha-form>
+            </div>
+          </details>
+          <details>
+            <summary><ha-icon class="section-icon" icon="mdi:filter-variant"></ha-icon>Filters</summary>
+            <div class="section-content">
+              <ha-form
+                .data=${this._config}
+                .schema=${filterSchema}
+                .computeLabel=${this._computeLabel}
+                .computeHelper=${this._computeHelper}
+                @value-changed=${this._valueChanged}
+              ></ha-form>
+            </div>
+          </details>
+          <details>
+            <summary><ha-icon class="section-icon" icon="mdi:translate"></ha-icon>Date Format</summary>
+            <div class="section-content">
+              <ha-form
+                .data=${this._config}
+                .schema=${dateFormatSchema}
+                .computeLabel=${this._computeLabel}
+                .computeHelper=${this._computeHelper}
+                @value-changed=${this._valueChanged}
+              ></ha-form>
+            </div>
+          </details>
+        </div>
+      </ha-card>
+    `;
+  }
+
   _getSchema() {
     const hass = this._hass;
     const generalSchema = [
@@ -173,12 +170,9 @@ export class ProcareTimelineCardEditor extends LitElement {
       }
     ];
 
-    return [
-      ...generalSchema,
-      ...filterSchema,
-      ...dateFormatSchema
-    ];
+    return [...generalSchema, ...filterSchema, ...dateFormatSchema];
   }
+
   _computeLabel(schema) {
     const labels = {
       header: "Header",
@@ -189,25 +183,25 @@ export class ProcareTimelineCardEditor extends LitElement {
     return labels[schema.name] || schema.name;
   }
 
-    _computeHelper = (schema) => schema.description || "";
+  _computeHelper = (schema) => schema.description || "";
 
   _valueChanged(event) {
     let newConfig = event.detail.value;
     this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: newConfig } }));
   }
 
-    static get styles() {
-        return css`
-            ha-card {
-                padding: 16px;
-            }
-            .card-content {
-                display: flex;
-                flex-direction: column;
-                gap: 16px;
-            }
-        `;
-    }
+  static get styles() {
+    return css`
+      ha-card {
+        padding: 16px;
+      }
+      .card-content {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+    `;
+  }
 }
 
 customElements.define("procare-timeline-card-editor", ProcareTimelineCardEditor);
@@ -221,7 +215,6 @@ window.customCards.push({
   name: 'Procare Timeline Card',
   description: 'A timeline card to display Procare activities.',
 });
-
 
 // =============================
 // Procare Timeline Card
@@ -318,7 +311,15 @@ class ProcareTimelineCard extends HTMLElement {
           .timeline-content .time { color: var(--secondary-text-color); font-size: 0.9em; margin-bottom: 8px; }
           .timeline-content .description { color: var(--primary-text-color); }
           .timeline-content .staff { font-style: italic; color: var(--secondary-text-color); margin-top: 4px; }
-          .timeline-content img { max-width: 100%; border-radius: 8px; margin-top: 8px; }
+          
+          /* Consistent styling for Media */
+          .timeline-content img, .timeline-content video { 
+            max-width: 100%; 
+            border-radius: 8px; 
+            margin-top: 8px; 
+            display: block;
+          }
+          
           .no-activities { padding: 16px; }
         </style>
         <ha-card header="${cardTitle}">
@@ -341,17 +342,31 @@ class ProcareTimelineCard extends HTMLElement {
       const title = activity.title || 'Activity';
       const description = activity.details || '';
       const staff = activity.staff ? `<div class="staff">by ${activity.staff}</div>` : '';
-      const photo = activity.photo_url ? `<img src="${activity.photo_url}" alt="Activity photo">` : '';
+      
+      // Logic for Video vs Photo
+      let mediaHtml = '';
+      if (activity.video_url) {
+        mediaHtml = `
+          <video 
+            controls 
+            preload="none" 
+            poster="${activity.photo_url || ''}">
+            <source src="${activity.video_url}" type="video/mp4">
+            Your browser does not support the video tag.
+          </video>`;
+      } else if (activity.photo_url) {
+        mediaHtml = `<img src="${activity.photo_url}" alt="Activity photo">`;
+      }
 
       timelineHtml += `
         <div class="timeline-item">
           <div class="timeline-icon"><ha-icon icon="${icon}"></ha-icon></div>
           <div class="timeline-content">
-            <div class="title">  ${title}</div>
-            <div class="time">  ${time}</div>
-            <div class="description">  ${description}</div>
+            <div class="title"> ${title}</div>
+            <div class="time"> ${time}</div>
+            <div class="description"> ${description}</div>
             ${staff}
-            ${photo}
+            ${mediaHtml}
           </div>
         </div>
       `;
@@ -382,4 +397,3 @@ class ProcareTimelineCard extends HTMLElement {
 }
 
 customElements.define('procare-timeline-card', ProcareTimelineCard);
-
