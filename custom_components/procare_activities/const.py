@@ -1,7 +1,9 @@
 """Constants for the Procare Activities integration."""
 
 DOMAIN = "procare_activities"
-PLATFORMS = ["sensor"]
+PLATFORMS = ["binary_sensor", "sensor"]
+
+MANUFACTURER = "Procare Connect"
 
 CONF_SCHOOL_NAME = "school_name"
 CONF_UPDATE_INTERVAL = "update_interval"
