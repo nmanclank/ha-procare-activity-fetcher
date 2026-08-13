@@ -257,4 +257,3 @@ class ProcareApi:
                 _LOGGER.warning("Could not parse activity record: %s", act, exc_info=True)
 
         return parsed
-
