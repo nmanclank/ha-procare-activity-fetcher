@@ -207,12 +207,13 @@ class ProcareApi:
                 activity_type = act.get("activity_type", "unknown").replace("_activity", "")
                 title = activity_type.replace("_", " ").title()
                 details = act.get("comment", "") or ""
-                data = act.get("data", {})
+                data = act.get("data") or {}
+                activiable = act.get("activiable") or {}
 
                 if activity_type in ("sign_in", "sign_out"):
-                    activiable = act.get("activiable", {})
-                    signed_by = activiable.get(f"signed_{activity_type}_by", "Unknown")
-                    title = f"Signed {activity_type.replace('sign_', '').title()}"
+                    direction = activity_type.replace("sign_", "")  # "in" or "out"
+                    signed_by = activiable.get(f"signed_{direction}_by") or "Unknown"
+                    title = f"Signed {direction.title()}"
                     details = f"By {signed_by}"
                 elif activity_type == "meal" and data:
                     title = f"Meal: {data.get('type', 'Meal')}"
@@ -241,8 +242,6 @@ class ProcareApi:
                         details = desc
                 elif activity_type == "bathroom" and data:
                     title = f"Diaper: {data.get('sub_type', 'check')}"
-                
-                activiable = act.get("activiable", {})
 
                 parsed.append({
                     "id": act.get("id"),
@@ -251,11 +250,10 @@ class ProcareApi:
                     "details": details.strip(),
                     "photo_url": act.get("photo_url"),
                     "video_url": activiable.get("video_file_url"),
-                    "is_video": activiable.get("is_video", False), 
+                    "is_video": activiable.get("is_video", False),
                     "staff": act.get("staff_present_name"),
                 })
             except Exception:
                 _LOGGER.warning("Could not parse activity record: %s", act, exc_info=True)
-        
-        return parsed
 
+        return parsed
