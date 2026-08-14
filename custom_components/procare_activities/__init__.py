@@ -27,16 +27,48 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     session = aiohttp.ClientSession()
     api = ProcareApi(session, username, password, school_name)
 
+    # Last successfully fetched account info, kept across update cycles.
+    last_user_info: dict = {}
+    user_info_failing = False
+
     async def async_update_data():
         """Fetch data from API endpoint."""
+        nonlocal last_user_info, user_info_failing
         try:
-            return await api.async_get_activities(selected_kid_id)
+            activities = await api.async_get_activities(selected_kid_id)
         except ProcareAuthError as err:
             raise ConfigEntryAuthFailed from err
         except ProcareApiError as err:
             raise UpdateFailed(f"Error communicating with Procare API: {err}") from err
         except Exception as err:
             raise UpdateFailed(f"Unexpected error: {err}") from err
+
+        # Account-level info is a bonus on top of the activity feed, so a failure
+        # here must never take the feed down with it. Carry the previous cycle's
+        # data forward so a single blip doesn't flap the account entities to
+        # unavailable; only a fetch that has never succeeded yields {}.
+        try:
+            fetched = await api.async_get_user_info()
+            if fetched:
+                last_user_info = fetched
+                if user_info_failing:
+                    _LOGGER.info("Procare account info is available again.")
+                    user_info_failing = False
+            else:
+                _LOGGER.debug("User info response was empty; keeping previous values.")
+        except Exception as err:
+            # Warn once on the way down, then stay quiet - a permanently removed
+            # endpoint shouldn't fill the log with an entry every poll cycle.
+            if user_info_failing:
+                _LOGGER.debug("Procare account info still unavailable: %s", err)
+            else:
+                _LOGGER.warning(
+                    "Could not fetch Procare account info, the activity feed is "
+                    "unaffected: %s", err
+                )
+                user_info_failing = True
+
+        return {"activities": activities, "user": last_user_info}
 
     update_interval_minutes = entry.data.get(CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL)
     coordinator = DataUpdateCoordinator(

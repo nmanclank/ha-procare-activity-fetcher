@@ -35,6 +35,65 @@ class ProcareNoChildrenError(ProcareApiError):
 ###################################################
 
 
+### Coercion helpers - Procare is loose about types (enrollment is the string
+### "22", optional objects come back as JSON null, empty strings stand in for
+### missing values). These normalize without ever raising.
+
+def _as_dict(value):
+    """Return value when it is a dict, otherwise an empty dict."""
+    return value if isinstance(value, dict) else {}
+
+
+def _clean_str(value):
+    """Return a non-empty trimmed string, or None.
+
+    Containers become None rather than a stringified repr, so an upstream shape
+    change can't dump a raw dict into an entity state.
+    """
+    if value is None or isinstance(value, (dict, list, tuple, set)):
+        return None
+    text = str(value).strip()
+    return text or None
+
+
+def _safe_bool(value):
+    """Return a bool, or None when the field is absent.
+
+    Absent must stay None rather than collapsing to False: these flags drive
+    notifications, and "we don't know" is not the same as "nothing waiting".
+    """
+    if value is None:
+        return None
+    if isinstance(value, str):
+        text = value.strip().lower()
+        if text in ("true", "yes", "1"):
+            return True
+        if text in ("false", "no", "0", ""):
+            return False
+        return None
+    return bool(value)
+
+
+def _safe_float(value):
+    """Return a float, or None if missing/unparseable."""
+    if value is None or value == "":
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _safe_int(value):
+    """Return an int, or None if missing/unparseable."""
+    if value is None or value == "":
+        return None
+    try:
+        return int(float(value))
+    except (TypeError, ValueError):
+        return None
+
+
 class ProcareApi:
     def __init__(
         self,
@@ -179,6 +238,98 @@ class ProcareApi:
         if not kids:
             raise ProcareNoChildrenError("No children found for this account.")
         return [{"name": f"{k.get('first_name', '')} {k.get('last_name', '')}".strip(), "id": k.get("id")} for k in kids]
+
+    async def async_get_user_info(self) -> dict:
+        """Fetch account-level info (school, carer, family) for the logged-in user."""
+        data = await self._request_with_reauth("GET", f"{self._api_host}/api/web/user/")
+        return self._parse_user_info((data or {}).get("user") or {})
+
+    def _parse_user_info(self, user: dict) -> dict:
+        """Parse the /api/web/user/ payload into a flat, safe structure.
+
+        Deliberately narrow: the raw response also carries the auth token, the
+        carer PIN, the account email and a full permissions map. None of that is
+        copied out here, so it can never reach entity attributes or the recorder
+        database. Never raises - a shape change upstream degrades the account
+        entities to "unknown" instead of failing the whole coordinator update.
+        """
+        if not isinstance(user, dict) or not user:
+            return {}
+
+        try:
+            # "current_school" is the authoritative copy, but carer_schools[0]
+            # mirrors the same fields and serves as a free fallback.
+            school = _as_dict(user.get("current_school"))
+            if not school:
+                carer_schools = user.get("carer_schools")
+                if isinstance(carer_schools, list) and carer_schools:
+                    school = _as_dict(carer_schools[0])
+
+            # null for non-parent roles, so this must not be assumed present.
+            carer = _as_dict(user.get("carer"))
+
+            # Prefer the family the carer actually belongs to; families[0] is
+            # only correct while there are no sub-families on the account.
+            raw_families = user.get("families")
+            families = [
+                f for f in (raw_families if isinstance(raw_families, list) else [])
+                if isinstance(f, dict)
+            ]
+            family = {}
+            carer_family_id = carer.get("family_id")
+            if carer_family_id:
+                family = next(
+                    (f for f in families if f.get("family_id") == carer_family_id), {}
+                )
+            if not family and families:
+                family = families[0]
+
+            # Nothing recognizable in the payload - report it as "no data" so the
+            # coordinator keeps the last good values instead of overwriting them
+            # with a skeleton of Nones.
+            if not school and not carer and not family:
+                _LOGGER.debug("User info payload had no school, carer or family data.")
+                return {}
+
+            return {
+                "school": {
+                    "id": _clean_str(school.get("id")),
+                    "name": _clean_str(school.get("name")),
+                    "phone": _clean_str(school.get("phone")),
+                    "time_zone": _clean_str(school.get("time_zone")),
+                    "facility_type": _clean_str(school.get("facility_type")),
+                    "street_address": _clean_str(school.get("street_address")),
+                    "address_line_2": _clean_str(school.get("address_line_2")),
+                    "city": _clean_str(school.get("city")),
+                    "state": _clean_str(school.get("state")),
+                    "zip": _clean_str(school.get("zip")),
+                    "country": _clean_str(school.get("country")),
+                    "web_url": _clean_str(school.get("web_url")),
+                    "enrollment": _safe_int(school.get("enrollment")),
+                    "billing_currency": _clean_str(school.get("billing_currency")),
+                },
+                "carer": {
+                    "id": _clean_str(carer.get("id")),
+                    "name": _clean_str(carer.get("name")),
+                    "relation": _clean_str(carer.get("relation")),
+                    "actual_relation": _clean_str(carer.get("actual_relation")),
+                    "status": _clean_str(carer.get("status")),
+                    "emergency_contact": _safe_bool(carer.get("emergency_contact")),
+                    "is_signed_up": _safe_bool(carer.get("is_signed_up")),
+                    "unread_messages": _safe_bool(carer.get("unread_messages")),
+                    "signature_requests_present": _safe_bool(
+                        carer.get("signature_requests_present")
+                    ),
+                },
+                "family": {
+                    "id": _clean_str(family.get("family_id")),
+                    "current_balance": _safe_float(family.get("current_balance")),
+                    "auto_pay": _safe_bool(family.get("auto_pay")),
+                },
+            }
+        except Exception:
+            _LOGGER.warning("Could not parse user info response.", exc_info=True)
+            return {}
 
     async def async_get_activities(self, kid_id: str) -> list[dict]:
         """Fetch latest activities for a specific child from the last 7 days."""

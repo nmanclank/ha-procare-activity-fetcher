@@ -11,7 +11,8 @@ This is a custom integration for Home Assistant to display the latest activities
 
 *   **Fetches Daily Activities:** Retrieves the latest activities for a selected child from the Procare Connect API.
 *   **Real-time Sensor:** Creates a sensor entity in Home Assistant for the most recent activity. The sensor's state is the title of the latest activity (e.g., "Meal: Lunch").
-*   **Detailed Attributes:** Stores all activities from the last 7 days in the sensor's attributes, including timestamps, details, photos, and staff member names.
+*   **Detailed Attributes:** Stores all activities from the last 7 days in the sensor's attributes, including timestamps, details, photos, videos, and staff member names.
+*   **Account Info:** Adds an "Account" device with your family's outstanding balance, unread-message and pending-signature flags, plus school and carer details.
 *   **Multi-child Support:** If your account has multiple children, you can select which child to monitor during the configuration process.
 *   **Custom School Support:** Supports Procare instances with custom school domains.
 
@@ -53,18 +54,57 @@ This is a custom integration for Home Assistant to display the latest activities
 
 ## Sensor Usage
 
-The integration creates a sensor named `sensor.<child_name>_activities`.
+Each config entry creates two devices: one named after the child, and one named after the school.
+
+### Activity sensor (child device)
+
+The integration creates a sensor named `sensor.<child_name>_latest_activity`.
 
 *   **State:** The state of the sensor will be the title of the most recent activity (e.g., "Nap Started at 1:00 PM").
-*   **Attributes:** The sensor's attributes contain a list of all activities from the past 7 days. Each activity is a dictionary with the following keys:
+*   **Attributes:** The `activities` attribute contains a list of all activities from the past 7 days. Each activity is a dictionary with the following keys:
     *   `id`: The unique ID of the activity.
     *   `timestamp`: The time the activity occurred (ISO 8601 format).
     *   `title`: A descriptive title for the activity.
     *   `details`: Additional details about the activity.
     *   `photo_url`: A URL to a photo associated with the activity (if available).
+    *   `video_url`: A URL to a video associated with the activity (if available).
+    *   `is_video`: Whether the attached media is a video.
     *   `staff`: The name of the staff member who recorded the activity.
 
-You can use this data to create automations or display it in your Home Assistant dashboard.
+### Account entities (school device)
+
+These describe the account as a whole rather than a single child.
+
+| Entity | Type | Description |
+| --- | --- | --- |
+| `sensor.procare_family_balance` | Sensor | The family's current balance, in the school's billing currency. A **positive** value is the amount **owed**. |
+| `binary_sensor.procare_unread_messages` | Binary sensor | `on` when there are unread messages from the school. |
+| `binary_sensor.procare_signature_requests` | Binary sensor | `on` when the school is waiting on a document signature. |
+| `binary_sensor.procare_auto_pay` | Binary sensor | Whether auto-pay is enabled. Diagnostic. |
+| `sensor.procare_school` | Sensor | The school's name, with address, phone, timezone, facility type and enrollment as attributes. Diagnostic. |
+| `sensor.procare_carer` | Sensor | Your name on the account, with relation, status, emergency-contact and signup state as attributes. Diagnostic. |
+
+A few notes:
+
+*   These entities read from a separate `/api/web/user/` call. If that call fails, they go unavailable but the activity sensor keeps updating normally.
+*   A missing field reports as `unknown` rather than `off` or `0`, so automations can tell "nothing waiting" apart from "we couldn't check".
+*   Your account PIN, auth token and email address are **never** stored in entity state or attributes, even though the API returns them.
+*   Because the integration creates one config entry per child, a household with two children gets **two copies** of these account entities (the second suffixed `_2`). They report the same values; you can safely disable the duplicate set in **Settings > Devices & Services > Entities**.
+
+You can use this data to create automations or display it in your Home Assistant dashboard. For example, to be notified when you owe the daycare money:
+
+```yaml
+automation:
+  - alias: "Daycare balance due"
+    trigger:
+      - platform: numeric_state
+        entity_id: sensor.procare_family_balance
+        above: 0
+    action:
+      - service: notify.mobile_app
+        data:
+          message: "Daycare balance is now {{ states('sensor.procare_family_balance') }}"
+```
 
 ## Contributing
 
