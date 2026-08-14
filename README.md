@@ -15,6 +15,7 @@ This is a custom integration for Home Assistant to display the latest activities
 *   **Account Info:** Adds an "Account" device with your family's outstanding balance, unread-message and pending-signature flags, plus school and carer details.
 *   **Multi-child Support:** If your account has multiple children, you can select which child to monitor during the configuration process.
 *   **Custom School Support:** Supports Procare instances with custom school domains.
+*   **Timeline Card:** An optional Lovelace card that renders the activity feed as a timeline, with an expandable photo/video viewer, day grouping and type filters. See [Timeline Card](#timeline-card).
 
 ## Installation
 
@@ -105,6 +106,95 @@ automation:
         data:
           message: "Daycare balance is now {{ states('sensor.procare_family_balance') }}"
 ```
+
+## Timeline Card
+
+An optional Lovelace card that renders the `activities` attribute as a timeline, with a
+full-screen media viewer, day grouping and type filtering.
+
+### Card installation
+
+The card is not distributed through HACS — copy it in manually:
+
+1.  Copy `www/community/procare-timeline-card/procare-timeline-card.js` from this
+    repository into your Home Assistant `config/www/community/procare-timeline-card/`
+    folder.
+2.  Go to **Settings > Dashboards > ... (three dots) > Resources**, click
+    **Add Resource**, and register it as a **JavaScript module**:
+
+    ```
+    /local/community/procare-timeline-card/procare-timeline-card.js
+    ```
+
+3.  Hard-refresh your browser, then add **Procare Timeline Card** from the card picker.
+
+The card has no external dependencies and makes no network requests of its own, so it
+works on installs with no outbound internet access.
+
+### Card options
+
+Every option is optional except `entity`. All of them are also editable from the card's
+visual editor.
+
+| Option | Type | Default | Description |
+| --- | --- | --- | --- |
+| `entity` | string | **required** | The `sensor.<child_name>_latest_activity` entity to display. |
+| `header` | string | `Procare Activities` | Card title. Set to `""` to hide the header entirely. |
+| `number_of_events` | number | `10` | How many of the most recent events to show. `0` means all of them. |
+| `date_format` | string | `monthddyy` | One of `monthddyy`, `short`, `long`, `date`, `time`. |
+| `relative_time` | boolean | `true` | Show `2h ago` for events from the last 24 hours, falling back to `date_format` for older ones. |
+| `group_by_day` | boolean | `true` | Group events under sticky **Today** / **Yesterday** / date headers. |
+| `collapsible_days` | boolean | `false` | Make the day headers tappable to collapse. Older days start collapsed. Requires `group_by_day`. |
+| `show_more` | boolean | `true` | Show a **Show N more** button when the feed is longer than `number_of_events`. |
+| `compact` | boolean | `false` | Tighter rows and thumbnail-sized media, for narrow dashboard columns. |
+| `show_staff` | boolean | `true` | Show the `by <staff>` attribution on each event. |
+| `filter_chips` | boolean | `false` | Add a row of chips at the top for filtering by type without editing the config. |
+| `hide_types` | list | `[]` | Activity types to leave out completely. Valid keys: `signin`, `signout`, `bottle`, `meal`, `nap`, `diaper`, `potty`, `health`, `incident`, `meds`, `learning`, `note`, `video`, `photo`, `other`. |
+
+Minimal configuration:
+
+```yaml
+type: custom:procare-timeline-card
+entity: sensor.jane_doe_latest_activity
+```
+
+A fuller example — every day collapsible, filter chips on, and the whole week's feed:
+
+```yaml
+type: custom:procare-timeline-card
+entity: sensor.jane_doe_latest_activity
+header: Jane's Day
+number_of_events: 0
+group_by_day: true
+collapsible_days: true
+filter_chips: true
+relative_time: true
+hide_types:
+  - signin
+  - signout
+```
+
+### Media viewer
+
+Photos and videos are tappable. Videos show a play button and a **Video** badge, and the
+video file is not fetched until you open it.
+
+Opening any of them brings up a full-screen viewer that steps through **all** the media
+in the feed:
+
+*   **←** / **→**, the on-screen arrows, or a horizontal swipe move between items.
+*   **Esc** or the close button dismisses it.
+*   Videos get native playback controls plus a fullscreen button, and stop playing when
+    the viewer closes.
+
+### Notes
+
+*   The older option names `title` and `max_events` are still accepted as aliases for
+    `header` and `number_of_events`.
+*   Activity types are inferred from each activity's `title`, since the integration does
+    not expose a separate type field.
+*   The card sizes itself from its container rather than the viewport, so it lays out
+    correctly on phones, tablets, desktop, and in narrow dashboard columns alike.
 
 ## Contributing
 
