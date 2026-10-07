@@ -1,3 +1,12 @@
+# ATTN.
+
+### This repo is being archived. I no longer have access to a Procare account after relocating, as our new childcare provider doesn't use this platform. 
+### Huge thanks to everyone along the way who provided meaningful feedback + the really nice DMs on reddit.
+
+### While the journey is over for this repo, hopefully a new adventurer will come along to pick up the torch (fork) and continue development.
+
+
+
 # Procare Activities Integration for Home Assistant
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Default-orange.svg)](https://github.com/hacs/integration)
